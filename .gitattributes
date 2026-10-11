@@ -1,0 +1,11 @@
+# 统一换行符,避免 Windows 上提交后到处是 CRLF 警告
+* text=auto
+
+# Windows 批处理必须 CRLF,否则可能执行异常
+*.bat text eol=crlf
+
+# 二进制文件不要做换行转换
+*.whl binary
+*.png binary
+*.jpg binary
+*.ico binary

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学校信息抓取</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1c1e21;
+    --muted: #6b7280;
+    --line: #e3e5e9;
+    --accent: #2563eb;
+    --accent-soft: #eef3ff;
+    --news: #2563eb;
+    --notice: #d97706;
+    --other: #6b7280;
+    --personal: #059669;
+    --ok: #16a34a;
+    --warn: #d97706;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #1f2229;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --line: #31353d;
+      --accent: #6ea8fe;
+      --accent-soft: #22293a;
+      --news: #6ea8fe;
+      --notice: #e0a44a;
+      --other: #9aa0a6;
+      --personal: #4ade80;
+      --ok: #4ade80;
+      --warn: #e0a44a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+  .loginbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; margin-bottom: 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    font-size: 14px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+  .dot.on { background: var(--ok); }
+  .dot.wait { background: var(--warn); }
+  .loginbar .grow { flex: 1; }
+  .loginbar button {
+    padding: 7px 14px; font-size: 14px; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: var(--card); color: var(--text);
+  }
+  .loginbar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .loginbar button:disabled { opacity: .5; cursor: default; }
+
+  .search { display: flex; gap: 8px; flex-wrap: wrap; }
+  .search input {
+    flex: 1 1 320px; min-width: 0;
+    padding: 12px 14px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); color: var(--text);
+  }
+  .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .search button {
+    padding: 12px 24px; font-size: 15px; cursor: pointer;
+    border: 0; border-radius: 8px; background: var(--accent); color: #fff;
+  }
+  .search button:disabled { opacity: .55; cursor: default; }
+
+  .opts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  .status { margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .status.err { color: #c62828; }
+
+  .summary {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin: 20px 0 12px; padding: 14px 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    font-size: 14px;
+  }
+  .summary b { font-size: 18px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button {
+    padding: 8px 16px; font-size: 14px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    border-radius: 999px;
+  }
+  .tabs button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+  .item {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 8px; overflow: hidden;
+  }
+  .item > .head {
+    display: flex; gap: 12px; align-items: baseline;
+    padding: 12px 16px; cursor: pointer;
+  }
+  .item > .head:hover { background: var(--accent-soft); }
+  .date { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .title { flex: 1; }
+  .tag {
+    font-size: 12px; padding: 2px 8px; border-radius: 4px; flex: 0 0 auto;
+    border: 1px solid currentColor;
+  }
+  .tag.news { color: var(--news); }
+  .tag.notice { color: var(--notice); }
+  .tag.personal { color: var(--personal); }
+  .tag.other { color: var(--other); }
+  .column { color: var(--muted); font-size: 12px; flex: 0 0 auto; }
+
+  .body { padding: 0 16px 16px; border-top: 1px solid var(--line); font-size: 14px; }
+  .body pre {
+    white-space: pre-wrap; word-wrap: break-word; font: inherit;
+    margin: 12px 0; max-height: 420px; overflow: auto;
+  }
+  .body a { color: var(--accent); }
+  .hint { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>学校信息抓取</h1>
+  <div class="sub">输入学校官网地址,自动抓取新闻、通知、公告并按类别整理。招标采购类内容会被自动过滤。</div>
+
+  <div class="loginbar">
+    <span class="dot" id="dot"></span>
+    <span id="loginText">未登录</span>
+    <span class="grow"></span>
+    <button class="primary" id="btnLogin">打开登录窗口</button>
+    <button id="btnLogout">退出登录</button>
+  </div>
+
+  <form class="search" id="form">
+    <input id="url" type="text" placeholder="例如 ehall.dhu.edu.cn(校内地址需先连 SSLVPN)" autocomplete="off">
+    <button id="go" type="submit">开始抓取</button>
+  </form>
+
+  <div class="opts">
+    <label><input type="checkbox" id="useLogin"> 使用登录态(访问东华校内系统)</label>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="summary"></div>
+  <div class="tabs" id="tabs" hidden></div>
+  <div id="list"></div>
+</div>
+
+<script>
+const CATEGORY_CLASS = {
+  "新闻动态": "news", "通知公告": "notice", "个人相关": "personal", "其他": "other",
+};
+let DATA = null;
+let CUR = "全部";
+let pollTimer = null;
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------- 登录状态 ---------- */
+
+async function refreshLogin() {
+  try {
+    const r = await fetch("/login/status");
+    const s = await r.json();
+    setLoginUI(!!s.logged_in, s.url);
+    return !!s.logged_in;
+  } catch (e) {
+    setLoginUI(false, "");
+    return false;
+  }
+}
+
+function setLoginUI(on, url) {
+  const dot = $("dot");
+  dot.className = "dot" + (on ? " on" : "");
+  $("loginText").textContent = on ? "已登录" + (url ? "｜" + shortUrl(url) : "") : "未登录";
+  $("useLogin").checked = on ? $("useLogin").checked : false;
+}
+
+function shortUrl(u) {
+  try { return new URL(u).host; } catch (e) { return ""; }
+}
+
+$("btnLogin").addEventListener("click", async () => {
+  const btn = $("btnLogin");
+  btn.disabled = true;
+  $("dot").className = "dot wait";
+  $("loginText").textContent = "正在打开浏览器窗口…";
+  try {
+    await fetch("/login/start", { method: "POST" });
+    $("loginText").textContent = "请在弹出的浏览器里登录…";
+    // 轮询登录态,登录成功后自动停
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      const on = await refreshLogin();
+      if (on) {
+        clearInterval(pollTimer);
+        $("useLogin").checked = true;
+        $("loginText").textContent += "(已自动勾选「使用登录态」)";
+      }
+    }, 2000);
+  } catch (e) {
+    $("loginText").textContent = "打开失败:" + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("btnLogout").addEventListener("click", async () => {
+  clearInterval(pollTimer);
+  await fetch("/logout", { method: "POST" });
+  setLoginUI(false, "");
+  $("useLogin").checked = false;
+});
+
+refreshLogin();
+
+/* ---------- 抓取 ---------- */
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("url").value.trim();
+  if (!url) return;
+
+  const useLogin = $("useLogin").checked;
+  $("go").disabled = true;
+  $("status").className = "status";
+  $("status").textContent = useLogin
+    ? "正在用登录态抓取,可能要 30 秒以上,请稍等…"
+    : "正在抓取,首次抓取约需 10 秒,请稍等…";
+  $("summary").innerHTML = "";
+  $("list").innerHTML = "";
+  $("tabs").hidden = true;
+
+  try {
+    const resp = await fetch("/crawl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, use_login: useLogin }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "请求失败");
+    DATA = data;
+    CUR = "全部";
+    render();
+  } catch (err) {
+    $("status").className = "status err";
+    $("status").textContent = "抓取失败:" + err.message;
+  } finally {
+    $("go").disabled = false;
+  }
+});
+
+function render() {
+  const { columns, items, errors, counts, site } = DATA;
+
+  if (!columns.length) {
+    $("status").className = "status err";
+    $("status").textContent = errors.join(" ") || "未识别到任何栏目。";
+    return;
+  }
+
+  $("status").className = "status";
+  $("status").textContent = "站点:" + site + (DATA.used_login ? "(登录态)" : "");
+
+  const cats = (DATA.categories || []).filter((c) => (counts[c] || 0) > 0);
+  $("summary").innerHTML =
+    `<div class="summary">
+       <div><b>${columns.length}</b> 个栏目</div>
+       <div><b>${items.length}</b> 条信息</div>
+       ${cats.map((c) => `<div><b>${counts[c] || 0}</b> 条${c}</div>`).join("")}
+       ${errors.length ? `<div class="hint">${errors.length} 个栏目抓取失败</div>` : ""}
+     </div>`;
+
+  const tabs = ["全部", ...cats];
+  const bar = $("tabs");
+  bar.innerHTML = "";
+  bar.hidden = false;
+  tabs.forEach((t) => {
+    const n = t === "全部" ? items.length : (counts[t] || 0);
+    const b = document.createElement("button");
+    b.textContent = `${t} (${n})`;
+    b.className = t === CUR ? "on" : "";
+    b.onclick = () => { CUR = t; renderList(); };
+    bar.appendChild(b);
+  });
+  renderList();
+}
+
+function renderList() {
+  const items = DATA.items.filter((i) => CUR === "全部" || i.category === CUR);
+  const list = $("list");
+  list.innerHTML = "";
+  if (!items.length) {
+    list.innerHTML = '<div class="hint" style="padding:12px">该分类下没有内容。</div>';
+    return;
+  }
+  items.forEach((it) => list.appendChild(makeItem(it)));
+}
+
+function makeItem(it) {
+  const el = document.createElement("div");
+  el.className = "item";
+
+  const head = document.createElement("div");
+  head.className = "head";
+  head.innerHTML =
+    `<span class="date">${it.date || "无日期"}</span>
+     <span class="title"></span>
+     <span class="tag ${CATEGORY_CLASS[it.category] || "other"}">${it.category}</span>
+     <span class="column">${it.column || ""}</span>`;
+  head.querySelector(".title").textContent = it.title;
+  el.appendChild(head);
+
+  const body = document.createElement("div");
+  body.className = "body";
+  body.hidden = true;
+  el.appendChild(body);
+
+  let loaded = false;
+  head.onclick = async () => {
+    body.hidden = !body.hidden;
+    if (body.hidden || loaded) return;
+    loaded = true;
+    body.innerHTML = '<div class="hint">正在加载正文…</div>';
+    try {
+      const resp = await fetch("/detail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: it.url, use_login: !!DATA.used_login }),
+      });
+      const d = await resp.json();
+      const text = (d.text || "").slice(0, 4000) || "(未能提取到正文,请点击下方链接查看原文)";
+      body.innerHTML = "";
+      const pre = document.createElement("pre");
+      pre.textContent = text;
+      body.appendChild(pre);
+      const link = document.createElement("a");
+      link.href = it.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "在原文中查看 →";
+      body.appendChild(link);
+    } catch (err) {
+      body.innerHTML = `<div class="hint">正文加载失败:${err.message}</div>`;
+    }
+  };
+  return el;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# 登录态目录。
+# 里面有浏览器写下的真实登录 Cookie,提交上去等于把账号送人。
+# 任何时候都不要取消这一行。
+browser_profile/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# 抓取过程产生的临时文件
+*.log
+p.json
+ehall.json
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
